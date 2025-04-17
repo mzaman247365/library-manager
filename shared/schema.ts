@@ -9,6 +9,12 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   fullName: text("full_name").notNull(),
   isAdmin: boolean("is_admin").default(false).notNull(),
+  
+  // OAuth fields
+  oauthProvider: text("oauth_provider"),
+  oauthId: text("oauth_id").unique(),
+  email: text("email").unique(),
+  profileImage: text("profile_image"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -16,6 +22,10 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   fullName: true,
   isAdmin: true,
+  email: true,
+  oauthProvider: true,
+  oauthId: true,
+  profileImage: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
