@@ -19,8 +19,16 @@ import { useAuth } from "@/hooks/use-auth";
 export default function AuthPage() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
+  const { user, isLoading } = useAuth();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user && !isLoading) {
+      navigate("/dashboard");
+    }
+  }, [user, isLoading, navigate]);
   
   const [loginForm, setLoginForm] = useState({
     username: "",
@@ -192,10 +200,42 @@ export default function AuthPage() {
                         </>
                       )}
                     </Button>
+
+                    <div className="relative my-4">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">
+                          Or continue with
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => window.location.href = "/auth/google"}
+                      >
+                        <Mail className="mr-2 h-4 w-4" />
+                        Google
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => window.location.href = "/auth/facebook"}
+                      >
+                        <Facebook className="mr-2 h-4 w-4" />
+                        Facebook
+                      </Button>
+                    </div>
                   </form>
                 </CardContent>
                 <CardFooter className="flex justify-center text-sm text-muted-foreground">
-                  <p>Admin login: username "admin" / password "admin123"</p>
+                  <p>Admin login: username "admin" / password "n1mD@"</p>
                 </CardFooter>
               </Card>
             </TabsContent>
