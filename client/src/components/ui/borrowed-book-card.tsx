@@ -9,9 +9,29 @@ interface BorrowedBookCardProps {
   onReturn: (borrowId: number) => void;
 }
 
+/**
+ * Borrowed Book Card Component
+ * 
+ * Displays information about a borrowed book, including cover image, title, author,
+ * borrow date, due date, and return status. Handles cases where data might be undefined.
+ */
 export function BorrowedBookCard({ borrow, onReturn }: BorrowedBookCardProps) {
-  const borrowDate = new Date(borrow.borrowDate);
-  const dueDate = new Date(borrow.dueDate);
+  // Guard against null or undefined book object
+  if (!borrow || !borrow.book) {
+    return (
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-center h-24">
+            <p className="text-muted-foreground">Borrow data unavailable</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Safely create dates with error handling
+  const borrowDate = borrow.borrowDate ? new Date(borrow.borrowDate) : new Date();
+  const dueDate = borrow.dueDate ? new Date(borrow.dueDate) : new Date();
   const isOverdue = isPast(dueDate) && !borrow.isReturned;
   
   return (
@@ -22,7 +42,7 @@ export function BorrowedBookCard({ borrow, onReturn }: BorrowedBookCardProps) {
             {borrow.book.coverImage ? (
               <img 
                 src={borrow.book.coverImage} 
-                alt={`${borrow.book.title} cover`} 
+                alt={`${borrow.book.title || 'Book'} cover`} 
                 className="w-full h-full object-cover" 
               />
             ) : (
@@ -33,8 +53,8 @@ export function BorrowedBookCard({ borrow, onReturn }: BorrowedBookCardProps) {
           </div>
           
           <div className="ml-4 flex-1">
-            <h4 className="font-medium text-lg line-clamp-1">{borrow.book.title}</h4>
-            <p className="text-muted-foreground text-sm mb-2">{borrow.book.author}</p>
+            <h4 className="font-medium text-lg line-clamp-1">{borrow.book.title || 'Untitled Book'}</h4>
+            <p className="text-muted-foreground text-sm mb-2">{borrow.book.author || 'Unknown Author'}</p>
             
             <div className="flex items-center text-xs text-muted-foreground mb-1">
               <CalendarIcon className="h-3 w-3 mr-1" />
@@ -68,10 +88,17 @@ export function BorrowedBookCard({ borrow, onReturn }: BorrowedBookCardProps) {
           </Button>
         )}
         
-        {borrow.isReturned && (
+        {borrow.isReturned && borrow.returnDate && (
           <span className="text-xs flex items-center text-muted-foreground">
             <TimerOff className="h-3 w-3 mr-1" />
-            Returned on {format(new Date(borrow.returnDate!), 'MMM d, yyyy')}
+            Returned on {format(new Date(borrow.returnDate), 'MMM d, yyyy')}
+          </span>
+        )}
+        
+        {borrow.isReturned && !borrow.returnDate && (
+          <span className="text-xs flex items-center text-muted-foreground">
+            <TimerOff className="h-3 w-3 mr-1" />
+            Returned
           </span>
         )}
       </CardFooter>
