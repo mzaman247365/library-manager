@@ -109,9 +109,16 @@ export default function Dashboard() {
     },
   });
   
-  // Function to check if user has already borrowed a specific book
-  const isBookBorrowed = (bookId: number) => {
-    return activeBorrows?.some(borrow => borrow.bookId === bookId);
+  /**
+   * Function to check if user has already borrowed a specific book
+   * 
+   * Safely handles undefined borrowIds or activeBorrows array
+   * @param bookId - The ID of the book to check
+   * @returns boolean indicating if the book is already borrowed
+   */
+  const isBookBorrowed = (bookId?: number) => {
+    if (!bookId || !activeBorrows || !Array.isArray(activeBorrows)) return false;
+    return activeBorrows.some(borrow => borrow.bookId === bookId);
   };
   
   // Handle book return
@@ -202,7 +209,7 @@ export default function Dashboard() {
         active: location === "/",
       },
       {
-        icon: <BookCard className="h-5 w-5 mr-3" />,
+        icon: <History className="h-5 w-5 mr-3" />,
         label: "Browse Books",
         href: "/browse",
         active: location === "/browse",
@@ -320,7 +327,7 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center">
               <div className="p-3 rounded-full bg-primary/10 text-primary">
-                <BookCard className="h-6 w-6" />
+                <History className="h-6 w-6" />
               </div>
               <div className="ml-4">
                 <p className="text-sm text-muted-foreground">Books Borrowed</p>
@@ -418,11 +425,11 @@ export default function Dashboard() {
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : books && books.length > 0 ? (
+          ) : books && Array.isArray(books) && books.length > 0 ? (
             <div className="relative">
               <div className="flex overflow-x-auto pb-4 space-x-4 no-scrollbar">
                 {books.slice(0, 5).map((book) => (
-                  <div key={book.id} className="flex-shrink-0 w-48">
+                  <div key={book.id || Math.random()} className="flex-shrink-0 w-48">
                     <BookCard 
                       book={book} 
                       onBorrow={handleBorrowBook}

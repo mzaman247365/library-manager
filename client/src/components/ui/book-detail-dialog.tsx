@@ -19,6 +19,13 @@ interface BookDetailDialogProps {
   isBorrowed?: boolean;
 }
 
+/**
+ * Book Detail Dialog Component
+ * 
+ * Displays detailed information about a book in a modal dialog.
+ * Includes cover image, metadata, description, and borrow functionality.
+ * Handles cases where book properties might be undefined.
+ */
 export function BookDetailDialog({
   book,
   open,
@@ -26,12 +33,29 @@ export function BookDetailDialog({
   onBorrow,
   isBorrowed,
 }: BookDetailDialogProps) {
+  // Guard against null or undefined book object
+  if (!book) {
+    return (
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Book Details Unavailable</DialogTitle>
+            <DialogDescription>Unable to load book information</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 text-center text-muted-foreground">
+            Book data could not be loaded. Please try again later.
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{book.title}</DialogTitle>
-          <DialogDescription>By {book.author}</DialogDescription>
+          <DialogTitle>{book.title || 'Untitled Book'}</DialogTitle>
+          <DialogDescription>By {book.author || 'Unknown Author'}</DialogDescription>
         </DialogHeader>
         
         <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-4">
@@ -39,7 +63,7 @@ export function BookDetailDialog({
             {book.coverImage ? (
               <img 
                 src={book.coverImage} 
-                alt={`${book.title} cover`} 
+                alt={`${book.title || 'Book'} cover`} 
                 className="w-full h-full object-cover" 
               />
             ) : (
@@ -54,7 +78,7 @@ export function BookDetailDialog({
               <div className="flex justify-between">
                 <div>
                   <span className="text-sm font-medium">ISBN:</span>
-                  <span className="ml-2 text-sm">{book.isbn}</span>
+                  <span className="ml-2 text-sm">{book.isbn || 'N/A'}</span>
                 </div>
                 {book.category && (
                   <Badge variant="outline">{book.category}</Badge>
@@ -71,7 +95,7 @@ export function BookDetailDialog({
               <div>
                 <span className="text-sm font-medium">Availability:</span>
                 <span className="ml-2 text-sm">
-                  {book.availableCopies} of {book.totalCopies} copies available
+                  {typeof book.availableCopies === 'number' ? book.availableCopies : 0} of {typeof book.totalCopies === 'number' ? book.totalCopies : 0} copies available
                 </span>
               </div>
             </div>
@@ -94,9 +118,14 @@ export function BookDetailDialog({
           {onBorrow && (
             <Button
               onClick={onBorrow}
-              disabled={book.availableCopies === 0 || isBorrowed}
+              disabled={(typeof book.availableCopies !== 'number' || book.availableCopies === 0) || isBorrowed}
             >
-              {isBorrowed ? "Already Borrowed" : book.availableCopies === 0 ? "Not Available" : "Borrow Book"}
+              {isBorrowed 
+                ? "Already Borrowed" 
+                : (typeof book.availableCopies !== 'number' || book.availableCopies === 0) 
+                  ? "Not Available" 
+                  : "Borrow Book"
+              }
             </Button>
           )}
         </DialogFooter>
