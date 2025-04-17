@@ -10,7 +10,18 @@ import { User } from "@shared/schema";
 // Type definition for Express.User
 declare global {
   namespace Express {
-    interface User extends User {}
+    // Define the user interface directly without extending to avoid circular references
+    interface User {
+      id: number;
+      username: string;
+      password: string;
+      fullName: string;
+      isAdmin: boolean;
+      oauthProvider: string | null;
+      oauthId: string | null;
+      email: string | null;
+      profileImage: string | null;
+    }
   }
 }
 
@@ -25,10 +36,18 @@ export async function hashPassword(password: string): Promise<string> {
 
 // Compare the supplied password with the stored hash
 export async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  try {
+    const [hashed, salt] = stored.split(".");
+    if (!hashed || !salt) {
+      return false;
+    }
+    const hashedBuf = Buffer.from(hashed, "hex");
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    return timingSafeEqual(hashedBuf, suppliedBuf);
+  } catch (error) {
+    console.error("Error comparing passwords:", error);
+    return false;
+  }
 }
 
 // Return a user object without the password
@@ -45,7 +64,10 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
-      maxAge: 1000 * 60 * 60 * 24 // 24 hours
+      maxAge: 1000 * 60 * 60 * 24, // 24 hours
+      httpOnly: true,
+      secure: false, // set to true in production with HTTPS
+      sameSite: 'lax'
     }
   };
 
@@ -124,13 +146,13 @@ export function setupAuth(app: Express) {
         fullName,
         isAdmin: false,
         email: null,
-        emailVerified: false,
-        provider: "local",
-        providerId: null
+        oauthProvider: null,
+        oauthId: null,
+        profileImage: null
       });
       
       // Log the user in
-      req.login(getSafeUser(user), (err) => {
+      req.login(user, (err) => {
         if (err) {
           return res.status(500).json({ error: "Failed to log in after registration" });
         }
@@ -144,7 +166,7 @@ export function setupAuth(app: Express) {
 
   // Login endpoint
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
       if (err) {
         return next(err);
       }
@@ -153,10 +175,13 @@ export function setupAuth(app: Express) {
         return res.status(401).json({ error: "Invalid username or password" });
       }
       
-      req.login(user, (err) => {
+      req.login(user, (err: any) => {
         if (err) {
           return next(err);
         }
+        
+        // Debug log to check session
+        console.log('Session after login:', req.session);
         
         return res.json(getSafeUser(user));
       });
@@ -175,6 +200,11 @@ export function setupAuth(app: Express) {
 
   // Current user endpoint
   app.get("/api/user", (req, res) => {
+    // Debug log to check session
+    console.log('Session in /api/user:', req.session);
+    console.log('Is authenticated:', req.isAuthenticated());
+    console.log('User in request:', req.user);
+    
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
     }

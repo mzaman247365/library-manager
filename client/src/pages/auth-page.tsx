@@ -34,7 +34,14 @@ export default function AuthPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch('/api/user', { credentials: 'include' });
+        const res = await fetch('/api/user', { 
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
         if (res.ok) {
           navigate('/');
         }
@@ -62,7 +69,7 @@ export default function AuthPage() {
     }));
   };
   
-  // Modified login function to handle the redirect issue
+  // Simplified login function
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
@@ -72,7 +79,8 @@ export default function AuthPage() {
       const loginRes = await fetch('/api/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
         },
         body: JSON.stringify(loginForm),
         credentials: 'include'
@@ -85,27 +93,13 @@ export default function AuthPage() {
       
       const user = await loginRes.json();
       
-      // Verify session is established
-      const checkRes = await fetch('/api/user', { 
-        credentials: 'include',
-        // Add cache-busting to avoid cached responses
-        headers: { 
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        } 
-      });
-      
-      if (!checkRes.ok) {
-        throw new Error("Session could not be verified");
-      }
-      
       // Show success message
       toast({
         title: "Login successful",
         description: `Welcome back, ${user.fullName || user.username}!`,
       });
       
-      // Force redirect to homepage using window.location
+      // Force page reload to homepage
       window.location.href = "/";
     } catch (error) {
       toast({
@@ -113,11 +107,12 @@ export default function AuthPage() {
         description: error instanceof Error ? error.message : "Invalid username or password",
         variant: "destructive",
       });
+    } finally {
       setIsLoggingIn(false);
     }
   };
   
-  // Modified register function to handle the redirect issue
+  // Simplified register function
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsRegistering(true);
@@ -130,7 +125,8 @@ export default function AuthPage() {
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
         },
         body: JSON.stringify(registerForm),
         credentials: 'include'
@@ -148,7 +144,7 @@ export default function AuthPage() {
         description: `Welcome, ${user.fullName || user.username}!`,
       });
       
-      // Force redirect to homepage using window.location
+      // Force page reload to homepage
       window.location.href = "/";
     } catch (error) {
       toast({
@@ -156,6 +152,7 @@ export default function AuthPage() {
         description: error instanceof Error ? error.message : "An error occurred during registration",
         variant: "destructive",
       });
+    } finally {
       setIsRegistering(false);
     }
   };
