@@ -43,6 +43,10 @@ export const books = pgTable("books", {
   totalCopies: integer("total_copies").notNull().default(1),
   availableCopies: integer("available_copies").notNull().default(1),
   publicationYear: integer("publication_year"),
+  publisher: text("publisher"),
+  pageCount: integer("page_count"),
+  averageRating: text("average_rating"),
+  language: text("language").default("English"),
 });
 
 export const insertBookSchema = createInsertSchema(books).pick({

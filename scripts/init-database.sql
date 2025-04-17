@@ -11,12 +11,12 @@ CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   username VARCHAR(255) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
-  "fullName" VARCHAR(255) NOT NULL,
-  "isAdmin" BOOLEAN DEFAULT FALSE,
-  "oauthProvider" VARCHAR(255),
-  "oauthId" VARCHAR(255),
+  full_name VARCHAR(255) NOT NULL,
+  is_admin BOOLEAN DEFAULT FALSE,
+  oauth_provider VARCHAR(255),
+  oauth_id VARCHAR(255),
   email VARCHAR(255),
-  "profileImage" VARCHAR(255)
+  profile_image VARCHAR(255)
 );
 
 -- Create Books Table
@@ -25,41 +25,41 @@ CREATE TABLE books (
   title VARCHAR(255) NOT NULL,
   author VARCHAR(255) NOT NULL,
   isbn VARCHAR(20) UNIQUE,
-  "publishYear" INTEGER,
+  publication_year INTEGER,
   publisher VARCHAR(255),
   description TEXT,
   category VARCHAR(100),
-  "pageCount" INTEGER,
-  "coverImage" VARCHAR(255),
-  "availableCopies" INTEGER DEFAULT 1,
-  "totalCopies" INTEGER DEFAULT 1,
-  "averageRating" DECIMAL(3,2),
+  page_count INTEGER,
+  cover_image VARCHAR(255),
+  available_copies INTEGER DEFAULT 1,
+  total_copies INTEGER DEFAULT 1,
+  average_rating DECIMAL(3,2),
   language VARCHAR(50) DEFAULT 'English'
 );
 
 -- Create Borrows Table
 CREATE TABLE borrows (
   id SERIAL PRIMARY KEY,
-  "userId" INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  "bookId" INTEGER REFERENCES books(id) ON DELETE CASCADE,
-  "borrowDate" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  "dueDate" TIMESTAMP WITH TIME ZONE NOT NULL,
-  "returnDate" TIMESTAMP WITH TIME ZONE,
-  status VARCHAR(20) DEFAULT 'active',
-  CONSTRAINT borrow_unique UNIQUE ("userId", "bookId", "borrowDate")
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  book_id INTEGER REFERENCES books(id) ON DELETE CASCADE,
+  borrow_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  due_date TIMESTAMP WITH TIME ZONE NOT NULL,
+  return_date TIMESTAMP WITH TIME ZONE,
+  is_returned BOOLEAN DEFAULT FALSE,
+  CONSTRAINT borrow_unique UNIQUE (user_id, book_id, borrow_date)
 );
 
 -- Create index for faster querying
-CREATE INDEX idx_borrows_userId ON borrows("userId");
-CREATE INDEX idx_borrows_bookId ON borrows("bookId");
-CREATE INDEX idx_borrows_status ON borrows(status);
+CREATE INDEX idx_borrows_user_id ON borrows(user_id);
+CREATE INDEX idx_borrows_book_id ON borrows(book_id);
+CREATE INDEX idx_borrows_is_returned ON borrows(is_returned);
 CREATE INDEX idx_books_title ON books(title);
 CREATE INDEX idx_books_author ON books(author);
 CREATE INDEX idx_books_category ON books(category);
 
 -- Insert Admin User
 -- Password is hashed version of 'admin123'
-INSERT INTO users (username, password, "fullName", "isAdmin", email)
+INSERT INTO users (username, password, full_name, is_admin, email)
 VALUES (
   'admin',
   '$2b$12$g89e2bZU6V8rg7T710h65.p1A1ty2ByqC.VJcJQwvlie9woiA3ziG',
@@ -70,7 +70,7 @@ VALUES (
 
 -- Insert Regular User
 -- Password is hashed version of 'user123'
-INSERT INTO users (username, password, "fullName", "isAdmin", email)
+INSERT INTO users (username, password, full_name, is_admin, email)
 VALUES (
   'user',
   '$2b$12$ECk7j1T/ZP5NnfWzQ3StZuWEv0A8AKjDQYGE9HbDXOoHwsEQYOQT.',
@@ -80,7 +80,7 @@ VALUES (
 );
 
 -- Insert Sample Books
-INSERT INTO books (title, author, isbn, "publishYear", publisher, description, category, "pageCount", "coverImage", "availableCopies", "totalCopies", "averageRating", language)
+INSERT INTO books (title, author, isbn, publication_year, publisher, description, category, page_count, cover_image, available_copies, total_copies, average_rating, language)
 VALUES
   (
     'To Kill a Mockingbird',
@@ -235,29 +235,29 @@ VALUES
 
 -- Insert Sample Borrows (None are active as default)
 -- Let's add some sample borrow history
-INSERT INTO borrows ("userId", "bookId", "borrowDate", "dueDate", "returnDate", status)
+INSERT INTO borrows (user_id, book_id, borrow_date, due_date, return_date, is_returned)
 VALUES
   (
     2, 1, 
     CURRENT_TIMESTAMP - INTERVAL '60 days', 
     CURRENT_TIMESTAMP - INTERVAL '46 days',
     CURRENT_TIMESTAMP - INTERVAL '50 days',
-    'returned'
+    TRUE
   ),
   (
     2, 3, 
     CURRENT_TIMESTAMP - INTERVAL '45 days', 
     CURRENT_TIMESTAMP - INTERVAL '31 days',
     CURRENT_TIMESTAMP - INTERVAL '32 days',
-    'returned'
+    TRUE
   ),
   (
     2, 5, 
     CURRENT_TIMESTAMP - INTERVAL '30 days', 
     CURRENT_TIMESTAMP - INTERVAL '16 days',
     NULL,
-    'active'
+    FALSE
   );
 
 -- Add 'The Hobbit' as currently borrowed (matches the 0 available copies)
-UPDATE books SET "availableCopies" = 0 WHERE title = 'The Hobbit';
+UPDATE books SET available_copies = 0 WHERE title = 'The Hobbit';
