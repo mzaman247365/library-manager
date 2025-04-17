@@ -1,19 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { BookOpen, BookmarkIcon, LucideLibrary, UserPlus, LogIn, Facebook, Mail } from "lucide-react";
+import { BookOpen, BookmarkIcon, LucideLibrary, UserPlus, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 
 export default function AuthPage() {
   const [location, navigate] = useLocation();
@@ -31,6 +29,22 @@ export default function AuthPage() {
     password: "",
     fullName: "",
   });
+  
+  // Check if already logged in
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/user', { credentials: 'include' });
+        if (res.ok) {
+          navigate('/');
+        }
+      } catch (error) {
+        console.error("Auth check failed:", error);
+      }
+    };
+    
+    checkAuth();
+  }, [navigate]);
   
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -53,19 +67,33 @@ export default function AuthPage() {
     setIsLoggingIn(true);
     
     try {
-      const res = await apiRequest("POST", "/api/login", loginForm);
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(loginForm),
+        credentials: 'include'
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Login failed");
+      }
+      
       const user = await res.json();
       
       toast({
         title: "Login successful",
-        description: `Welcome back, ${user.fullName}!`,
+        description: `Welcome back, ${user.fullName || user.username}!`,
       });
       
-      navigate("/dashboard");
+      // Redirect to homepage
+      navigate("/");
     } catch (error) {
       toast({
         title: "Login failed",
-        description: error instanceof Error ? error.message : "Unknown error",
+        description: error instanceof Error ? error.message : "Invalid username or password",
         variant: "destructive",
       });
     } finally {
@@ -78,22 +106,37 @@ export default function AuthPage() {
     setIsRegistering(true);
     
     try {
-      const res = await apiRequest("POST", "/api/register", {
-        ...registerForm,
-        isAdmin: false
+      if (!registerForm.username || !registerForm.password || !registerForm.fullName) {
+        throw new Error("All fields are required");
+      }
+      
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(registerForm),
+        credentials: 'include'
       });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Registration failed");
+      }
+      
       const user = await res.json();
       
       toast({
         title: "Registration successful",
-        description: `Welcome, ${user.fullName}!`,
+        description: `Welcome, ${user.fullName || user.username}!`,
       });
       
-      navigate("/dashboard");
+      // Redirect to homepage
+      navigate("/");
     } catch (error) {
       toast({
         title: "Registration failed",
-        description: error instanceof Error ? error.message : "Unknown error",
+        description: error instanceof Error ? error.message : "An error occurred during registration",
         variant: "destructive",
       });
     } finally {
@@ -159,10 +202,11 @@ export default function AuthPage() {
                         Username
                       </label>
                       <Input 
-                        placeholder="johndoe" 
+                        placeholder="Enter your username" 
                         name="username"
                         value={loginForm.username}
                         onChange={handleLoginChange}
+                        autoComplete="username"
                       />
                     </div>
                     
@@ -175,6 +219,7 @@ export default function AuthPage() {
                         name="password"
                         value={loginForm.password}
                         onChange={handleLoginChange}
+                        autoComplete="current-password"
                       />
                     </div>
                     
@@ -191,43 +236,8 @@ export default function AuthPage() {
                         </>
                       )}
                     </Button>
-
-                    <div className="relative my-4">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-background px-2 text-muted-foreground">
-                          Or continue with
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => window.location.href = "/auth/google"}
-                      >
-                        <Mail className="mr-2 h-4 w-4" />
-                        Google
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => window.location.href = "/auth/facebook"}
-                      >
-                        <Facebook className="mr-2 h-4 w-4" />
-                        Facebook
-                      </Button>
-                    </div>
                   </form>
                 </CardContent>
-                <CardFooter className="flex justify-center text-sm text-muted-foreground">
-                  <p>Admin login: username "admin" / password "n1mD@"</p>
-                </CardFooter>
               </Card>
             </TabsContent>
             
@@ -262,6 +272,7 @@ export default function AuthPage() {
                         name="username"
                         value={registerForm.username}
                         onChange={handleRegisterChange}
+                        autoComplete="username"
                       />
                     </div>
                     
@@ -274,6 +285,7 @@ export default function AuthPage() {
                         name="password"
                         value={registerForm.password}
                         onChange={handleRegisterChange}
+                        autoComplete="new-password"
                       />
                     </div>
                     

@@ -1,219 +1,233 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { insertBookSchema, insertBorrowSchema } from "@shared/schema";
-import { ZodError } from "zod";
-import { fromZodError } from "zod-validation-error";
+import { storage } from "./storage";
+import { Book, Borrow } from "@shared/schema";
 
-const isAdmin = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  
-  if (!req.user?.isAdmin) {
-    return res.status(403).json({ message: "Forbidden: Admin access required" });
-  }
-  
-  next();
-};
+export function registerRoutes(app: Express): Server {
+  // Setup authentication and get middleware
+  const { isAuthenticated, isAdmin } = setupAuth(app);
 
-const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  
-  next();
-};
-
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication routes
-  setupAuth(app);
-
-  // Book routes
+  // Books API
   app.get("/api/books", async (req, res) => {
     try {
-      const searchQuery = req.query.q as string;
-      const books = searchQuery 
-        ? await storage.searchBooks(searchQuery)
-        : await storage.getAllBooks();
-      
+      const books = await storage.getAllBooks();
       res.json(books);
     } catch (error) {
-      res.status(500).json({ message: "Error retrieving books" });
+      console.error("Error fetching books:", error);
+      res.status(500).json({ error: "Failed to fetch books" });
     }
   });
-  
+
+  app.get("/api/books/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.status(400).json({ error: "Search query is required" });
+      }
+      
+      const books = await storage.searchBooks(query);
+      res.json(books);
+    } catch (error) {
+      console.error("Error searching books:", error);
+      res.status(500).json({ error: "Failed to search books" });
+    }
+  });
+
   app.get("/api/books/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const book = await storage.getBook(id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid book ID" });
+      }
       
+      const book = await storage.getBook(id);
       if (!book) {
-        return res.status(404).json({ message: "Book not found" });
+        return res.status(404).json({ error: "Book not found" });
       }
       
       res.json(book);
     } catch (error) {
-      res.status(500).json({ message: "Error retrieving book" });
+      console.error("Error fetching book:", error);
+      res.status(500).json({ error: "Failed to fetch book" });
     }
   });
-  
+
+  // Protected book management routes
   app.post("/api/books", isAdmin, async (req, res) => {
     try {
-      const bookData = insertBookSchema.parse(req.body);
+      const bookData = req.body;
       
       // Check if ISBN already exists
-      const existingBook = await storage.getBookByISBN(bookData.isbn);
-      if (existingBook) {
-        return res.status(400).json({ message: "Book with this ISBN already exists" });
+      if (bookData.isbn) {
+        const existingBook = await storage.getBookByISBN(bookData.isbn);
+        if (existingBook) {
+          return res.status(400).json({ error: "Book with this ISBN already exists" });
+        }
       }
       
       const book = await storage.createBook(bookData);
       res.status(201).json(book);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.message });
-      }
-      res.status(500).json({ message: "Error creating book" });
+      console.error("Error creating book:", error);
+      res.status(500).json({ error: "Failed to create book" });
     }
   });
-  
-  app.put("/api/books/:id", isAdmin, async (req, res) => {
+
+  app.patch("/api/books/:id", isAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const bookData = insertBookSchema.partial().parse(req.body);
-      
-      // Check if ISBN is being updated and already exists
-      if (bookData.isbn) {
-        const existingBook = await storage.getBookByISBN(bookData.isbn);
-        if (existingBook && existingBook.id !== id) {
-          return res.status(400).json({ message: "Book with this ISBN already exists" });
-        }
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid book ID" });
       }
       
-      const updatedBook = await storage.updateBook(id, bookData);
+      const bookData = req.body;
+      const book = await storage.updateBook(id, bookData);
       
-      if (!updatedBook) {
-        return res.status(404).json({ message: "Book not found" });
+      if (!book) {
+        return res.status(404).json({ error: "Book not found" });
       }
       
-      res.json(updatedBook);
+      res.json(book);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.message });
-      }
-      res.status(500).json({ message: "Error updating book" });
+      console.error("Error updating book:", error);
+      res.status(500).json({ error: "Failed to update book" });
     }
   });
-  
+
   app.delete("/api/books/:id", isAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid book ID" });
+      }
+      
       const success = await storage.deleteBook(id);
-      
       if (!success) {
-        return res.status(404).json({ message: "Book not found" });
+        return res.status(404).json({ error: "Book not found" });
       }
       
-      res.status(204).end();
+      res.sendStatus(204);
     } catch (error) {
-      res.status(500).json({ message: "Error deleting book" });
+      console.error("Error deleting book:", error);
+      res.status(500).json({ error: "Failed to delete book" });
     }
   });
-  
-  // Borrow routes
-  app.get("/api/borrows", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.user?.id;
-      
-      if (req.user?.isAdmin && req.query.all === 'true') {
-        const borrows = await storage.getAllBorrows();
-        return res.json(borrows);
-      }
-      
-      const borrows = await storage.getBorrowsByUser(userId!);
-      res.json(borrows);
-    } catch (error) {
-      res.status(500).json({ message: "Error retrieving borrows" });
-    }
-  });
-  
-  app.get("/api/borrows/active", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.user?.id;
-      const borrows = await storage.getActiveBorrowsByUser(userId!);
-      res.json(borrows);
-    } catch (error) {
-      res.status(500).json({ message: "Error retrieving active borrows" });
-    }
-  });
-  
+
+  // Borrow API
   app.post("/api/borrows", isAuthenticated, async (req, res) => {
     try {
-      const borrowData = insertBorrowSchema.parse({
-        ...req.body,
-        userId: req.user?.id
-      });
+      const { bookId, dueDate } = req.body;
       
-      // Check if book exists and is available
-      const book = await storage.getBook(borrowData.bookId);
+      if (!bookId || !dueDate) {
+        return res.status(400).json({ error: "Book ID and due date are required" });
+      }
+      
+      // Check if book exists and has available copies
+      const book = await storage.getBook(bookId);
       if (!book) {
-        return res.status(404).json({ message: "Book not found" });
+        return res.status(404).json({ error: "Book not found" });
       }
       
       if (book.availableCopies <= 0) {
-        return res.status(400).json({ message: "Book is not available for borrowing" });
+        return res.status(400).json({ error: "No available copies of this book" });
       }
       
-      // Check if user has already borrowed this book and not returned
-      const userBorrows = await storage.getActiveBorrowsByUser(req.user!.id);
-      const alreadyBorrowed = userBorrows.some(b => b.bookId === borrowData.bookId);
+      // Check if user already has an active borrow for this book
+      const userBorrows = await storage.getActiveBorrowsByUser(req.user.id);
+      const alreadyBorrowed = userBorrows.some(borrow => borrow.bookId === bookId);
       
       if (alreadyBorrowed) {
-        return res.status(400).json({ message: "You have already borrowed this book" });
+        return res.status(400).json({ error: "You already have this book borrowed" });
       }
       
-      const borrow = await storage.createBorrow(borrowData);
+      // Create borrow record
+      const borrow = await storage.createBorrow({
+        userId: req.user.id,
+        bookId,
+        borrowDate: new Date(),
+        dueDate: new Date(dueDate),
+        returnDate: null
+      });
+      
+      // Update available copies
+      await storage.updateBook(bookId, {
+        availableCopies: book.availableCopies - 1
+      });
+      
       res.status(201).json(borrow);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.message });
-      }
-      res.status(500).json({ message: "Error borrowing book" });
+      console.error("Error borrowing book:", error);
+      res.status(500).json({ error: "Failed to borrow book" });
     }
   });
-  
+
   app.post("/api/borrows/:id/return", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid borrow ID" });
+      }
+      
+      // Check if borrow exists and belongs to the user
       const borrow = await storage.getBorrow(id);
-      
       if (!borrow) {
-        return res.status(404).json({ message: "Borrow record not found" });
+        return res.status(404).json({ error: "Borrow record not found" });
       }
       
-      // Check if user is admin or the borrower
-      if (!req.user?.isAdmin && borrow.userId !== req.user?.id) {
-        return res.status(403).json({ message: "You can only return your own borrowed books" });
+      if (borrow.userId !== req.user.id && !req.user.isAdmin) {
+        return res.status(403).json({ error: "You don't have permission to return this book" });
       }
       
-      // Check if already returned
-      if (borrow.isReturned) {
-        return res.status(400).json({ message: "Book has already been returned" });
+      // Return the book
+      const updatedBorrow = await storage.returnBook(id);
+      if (!updatedBorrow) {
+        return res.status(404).json({ error: "Borrow record not found" });
       }
       
-      const returnedBorrow = await storage.returnBook(id);
-      res.json(returnedBorrow);
+      // Update available copies
+      const book = await storage.getBook(borrow.bookId);
+      if (book) {
+        await storage.updateBook(borrow.bookId, {
+          availableCopies: book.availableCopies + 1
+        });
+      }
+      
+      res.json(updatedBorrow);
     } catch (error) {
-      res.status(500).json({ message: "Error returning book" });
+      console.error("Error returning book:", error);
+      res.status(500).json({ error: "Failed to return book" });
     }
   });
-  
-  // User routes (admin only)
+
+  app.get("/api/borrows", isAuthenticated, async (req, res) => {
+    try {
+      let borrows;
+      
+      if (req.user.isAdmin) {
+        borrows = await storage.getAllBorrows();
+      } else {
+        borrows = await storage.getBorrowsByUser(req.user.id);
+      }
+      
+      res.json(borrows);
+    } catch (error) {
+      console.error("Error fetching borrows:", error);
+      res.status(500).json({ error: "Failed to fetch borrows" });
+    }
+  });
+
+  app.get("/api/borrows/active", isAuthenticated, async (req, res) => {
+    try {
+      const borrows = await storage.getActiveBorrowsByUser(req.user.id);
+      res.json(borrows);
+    } catch (error) {
+      console.error("Error fetching active borrows:", error);
+      res.status(500).json({ error: "Failed to fetch active borrows" });
+    }
+  });
+
+  // User management (admin only)
   app.get("/api/users", isAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
@@ -226,10 +240,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(safeUsers);
     } catch (error) {
-      res.status(500).json({ message: "Error retrieving users" });
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
     }
   });
 
+  app.patch("/api/users/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid user ID" });
+      }
+      
+      const userData = req.body;
+      
+      // Don't allow updating passwords through this endpoint
+      if (userData.password) {
+        delete userData.password;
+      }
+      
+      const user = await storage.updateUser(id, userData);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Remove password from response
+      const { password, ...safeUser } = user;
+      
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+
+  app.delete("/api/users/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid user ID" });
+      }
+      
+      // Prevent deleting self
+      if (id === req.user.id) {
+        return res.status(400).json({ error: "Cannot delete your own account" });
+      }
+      
+      const success = await storage.deleteUser(id);
+      if (!success) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.sendStatus(204);
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  // Create HTTP server
   const httpServer = createServer(app);
   return httpServer;
 }
