@@ -13,24 +13,35 @@ import { Button } from "@/components/ui/button";
 import { BookOpen, BookmarkIcon, LucideLibrary, UserPlus, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+/**
+ * Authentication Page Component
+ * 
+ * Handles user login and registration functionality.
+ * Upon successful authentication, redirects to the homepage.
+ */
 export default function AuthPage() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   
+  // Form state for login
   const [loginForm, setLoginForm] = useState({
     username: "",
     password: "",
   });
   
+  // Form state for registration (no placeholders)
   const [registerForm, setRegisterForm] = useState({
     username: "",
     password: "",
     fullName: "",
   });
   
-  // Check if already logged in
+  /**
+   * Check if user is already logged in on component mount
+   * If already authenticated, redirect to homepage
+   */
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -43,7 +54,7 @@ export default function AuthPage() {
         });
         
         if (res.ok) {
-          navigate('/');
+          window.location.href = '/';
         }
       } catch (error) {
         console.error("Auth check failed:", error);
@@ -51,8 +62,11 @@ export default function AuthPage() {
     };
     
     checkAuth();
-  }, [navigate]);
+  }, []);
   
+  /**
+   * Handle login form field changes
+   */
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setLoginForm(prev => ({
@@ -61,6 +75,9 @@ export default function AuthPage() {
     }));
   };
   
+  /**
+   * Handle registration form field changes
+   */
   const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setRegisterForm(prev => ({
@@ -69,13 +86,21 @@ export default function AuthPage() {
     }));
   };
   
-  // Simplified login function
+  /**
+   * Handle login form submission
+   * Authenticates user and redirects to homepage on success
+   */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     
     try {
-      // Perform login
+      // Validate input
+      if (!loginForm.username || !loginForm.password) {
+        throw new Error("Username and password are required");
+      }
+      
+      // Perform login request
       const loginRes = await fetch('/api/login', {
         method: 'POST',
         headers: {
@@ -86,11 +111,13 @@ export default function AuthPage() {
         credentials: 'include'
       });
       
+      // Handle failed login
       if (!loginRes.ok) {
         const error = await loginRes.json();
         throw new Error(error.error || "Login failed");
       }
       
+      // Parse successful response
       const user = await loginRes.json();
       
       // Show success message
@@ -99,9 +126,10 @@ export default function AuthPage() {
         description: `Welcome back, ${user.fullName || user.username}!`,
       });
       
-      // Force page reload to homepage
+      // Force page reload to homepage via direct browser navigation
       window.location.href = "/";
     } catch (error) {
+      // Show error message
       toast({
         title: "Login failed",
         description: error instanceof Error ? error.message : "Invalid username or password",
@@ -112,16 +140,21 @@ export default function AuthPage() {
     }
   };
   
-  // Simplified register function
+  /**
+   * Handle registration form submission
+   * Creates new user account and logs in on success
+   */
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsRegistering(true);
     
     try {
+      // Validate form fields
       if (!registerForm.username || !registerForm.password || !registerForm.fullName) {
         throw new Error("All fields are required");
       }
       
+      // Send registration request
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: {
@@ -132,21 +165,25 @@ export default function AuthPage() {
         credentials: 'include'
       });
       
+      // Handle registration errors
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.error || "Registration failed");
       }
       
+      // Parse successful response
       const user = await res.json();
       
+      // Show success message
       toast({
         title: "Registration successful",
         description: `Welcome, ${user.fullName || user.username}!`,
       });
       
-      // Force page reload to homepage
+      // Force page reload to homepage via direct browser navigation
       window.location.href = "/";
     } catch (error) {
+      // Show error message
       toast({
         title: "Registration failed",
         description: error instanceof Error ? error.message : "An error occurred during registration",
@@ -205,7 +242,7 @@ export default function AuthPage() {
                 <CardHeader>
                   <CardTitle>Login</CardTitle>
                   <CardDescription>
-                    Enter your credentials to login to your account
+                    Enter your credentials to access your account
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -269,7 +306,7 @@ export default function AuthPage() {
                         Full Name
                       </label>
                       <Input 
-                        placeholder="John Doe" 
+                        placeholder="Enter your full name" 
                         name="fullName"
                         value={registerForm.fullName}
                         onChange={handleRegisterChange}
@@ -281,7 +318,7 @@ export default function AuthPage() {
                         Username
                       </label>
                       <Input 
-                        placeholder="johndoe" 
+                        placeholder="Choose a username" 
                         name="username"
                         value={registerForm.username}
                         onChange={handleRegisterChange}
@@ -296,6 +333,7 @@ export default function AuthPage() {
                       <Input 
                         type="password" 
                         name="password"
+                        placeholder="Create a password"
                         value={registerForm.password}
                         onChange={handleRegisterChange}
                         autoComplete="new-password"

@@ -57,17 +57,18 @@ export function getSafeUser(user: User): Omit<User, "password"> {
 }
 
 export function setupAuth(app: Express) {
-  // Configure session
+  // Configure session with permissive settings for development environment
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "library-management-secret-key",
-    resave: false,
-    saveUninitialized: false,
+    resave: true, // Changed to true to ensure session is saved on each request
+    saveUninitialized: true, // Changed to true to ensure new sessions are saved
     store: storage.sessionStore,
     cookie: {
-      maxAge: 1000 * 60 * 60 * 24, // 24 hours
+      maxAge: 1000 * 60 * 60 * 24 * 7, // Extended to 7 days
       httpOnly: true,
-      secure: false, // set to true in production with HTTPS
-      sameSite: 'lax'
+      secure: false, // Must remain false for non-HTTPS development
+      sameSite: 'none', // Allow cross-site cookies
+      path: '/' // Ensure cookie is sent for all paths
     }
   };
 

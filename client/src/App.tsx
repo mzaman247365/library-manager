@@ -17,7 +17,16 @@ interface User {
   isAdmin: boolean;
 }
 
-// Protected route component that checks authentication
+/**
+ * Protected Route Component
+ * 
+ * Checks user authentication status and:
+ * - Redirects to login if not authenticated
+ * - Shows a loading spinner during authentication check
+ * - Renders the requested component if authenticated
+ * 
+ * Uses cache-control headers and includes credentials to ensure proper session handling
+ */
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,25 +35,35 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch('/api/user', { credentials: 'include' });
+        // Use cache-busting headers to prevent stale session data
+        const res = await fetch('/api/user', { 
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        
         if (res.ok) {
           const userData = await res.json();
           setUser(userData);
+          console.log("Authentication successful:", userData.username);
         } else {
+          console.log("Authentication failed, redirecting to login");
           setUser(null);
-          navigate('/auth');
+          window.location.href = '/auth'; // Force hard navigation instead of React routing
         }
       } catch (error) {
         console.error("Auth check failed:", error);
         setUser(null);
-        navigate('/auth');
+        window.location.href = '/auth'; // Force hard navigation instead of React routing
       } finally {
         setLoading(false);
       }
     };
 
     checkAuth();
-  }, [navigate]);
+  }, []);
 
   if (loading) {
     return (
@@ -57,38 +76,57 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return user ? <Component /> : null;
 }
 
-// Admin route component that checks admin privileges
+/**
+ * Admin Route Component
+ * 
+ * Extends ProtectedRoute to also check for admin privileges
+ * - Redirects non-admin users to the homepage
+ * - Redirects unauthenticated users to login
+ * - Renders the requested component only for admin users
+ */
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [, navigate] = useLocation();
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch('/api/user', { credentials: 'include' });
+        // Use cache-busting headers to prevent stale session data
+        const res = await fetch('/api/user', { 
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        
         if (res.ok) {
           const userData = await res.json();
           setUser(userData);
           
+          // Check admin status
           if (!userData.isAdmin) {
-            navigate('/');
+            console.log("Access denied: User is not an admin");
+            window.location.href = '/'; // Redirect to homepage if not admin
+          } else {
+            console.log("Admin access granted for:", userData.username);
           }
         } else {
+          console.log("Authentication failed, redirecting to login");
           setUser(null);
-          navigate('/auth');
+          window.location.href = '/auth'; // Force hard navigation
         }
       } catch (error) {
         console.error("Auth check failed:", error);
         setUser(null);
-        navigate('/auth');
+        window.location.href = '/auth'; // Force hard navigation
       } finally {
         setLoading(false);
       }
     };
 
     checkAuth();
-  }, [navigate]);
+  }, []);
 
   if (loading) {
     return (
