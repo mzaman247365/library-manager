@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import {
   Card,
@@ -12,23 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { BookOpen, BookmarkIcon, LucideLibrary, UserPlus, LogIn, Facebook, Mail } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function AuthPage() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
-  const { user, isLoading } = useAuth();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  
-  // Redirect if user is already logged in
-  useEffect(() => {
-    if (user && !isLoading) {
-      navigate("/dashboard");
-    }
-  }, [user, isLoading, navigate]);
   
   const [loginForm, setLoginForm] = useState({
     username: "",
@@ -59,9 +50,9 @@ export default function AuthPage() {
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoggingIn(true);
     
     try {
-      setIsLoggingIn(true);
       const res = await apiRequest("POST", "/api/login", loginForm);
       const user = await res.json();
       
@@ -70,7 +61,7 @@ export default function AuthPage() {
         description: `Welcome back, ${user.fullName}!`,
       });
       
-      navigate("/");
+      navigate("/dashboard");
     } catch (error) {
       toast({
         title: "Login failed",
@@ -84,9 +75,9 @@ export default function AuthPage() {
   
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsRegistering(true);
     
     try {
-      setIsRegistering(true);
       const res = await apiRequest("POST", "/api/register", {
         ...registerForm,
         isAdmin: false
@@ -98,7 +89,7 @@ export default function AuthPage() {
         description: `Welcome, ${user.fullName}!`,
       });
       
-      navigate("/");
+      navigate("/dashboard");
     } catch (error) {
       toast({
         title: "Registration failed",
