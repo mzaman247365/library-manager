@@ -45,13 +45,32 @@ A comprehensive web application for managing book inventory, user registrations,
 
 1. Clone the repository
 2. Install dependencies: `npm install`
-3. Start the development server: `npm run dev`
+3. Set up your PostgreSQL database and configure the DATABASE_URL environment variable
+4. Initialize the database with sample data:
+   ```bash
+   npx tsx scripts/setup-database.ts
+   ```
+5. Start the development server: `npm run dev`
+
+### Database Scripts
+
+The `scripts/` directory contains several useful database utilities:
+
+- **setup-database.ts**: Initialize the database with schema and sample data
+- **add-admin.ts**: Create a new administrator user
+- **add-book.ts**: Add a new book to the library collection
+
+See the [scripts/README.md](scripts/README.md) file for more details on database setup.
 
 ### Default Credentials
 
 - Admin user: 
   - Username: `admin`
-  - Password: `n1mD@`
+  - Password: `admin123`
+  
+- Regular user:
+  - Username: `user`
+  - Password: `user123`
 
 ## API Endpoints
 
