@@ -1,9 +1,9 @@
-import { useAuth } from "@/hooks/use-auth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { apiRequest } from "@/lib/queryClient";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,13 +31,47 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-export function Layout({ children }: LayoutProps) {
-  const { user, logoutMutation } = useAuth();
-  const [location] = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+interface User {
+  id: number;
+  username: string;
+  fullName: string;
+  isAdmin: boolean;
+}
 
-  const handleLogout = () => {
-    logoutMutation.mutate();
+export function Layout({ children }: LayoutProps) {
+  const [location, navigate] = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  // Fetch user data
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/user', { credentials: 'include' });
+        if (res.ok) {
+          const userData = await res.json();
+          setUser(userData);
+        } else {
+          // If not authenticated, redirect to login
+          console.log("Authentication failed, redirecting to login");
+          navigate("/auth");
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data:", error);
+        navigate("/auth");
+      }
+    };
+    
+    fetchUser();
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    try {
+      await apiRequest("POST", "/api/logout", {});
+      navigate("/auth");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   const navItems = [
@@ -123,7 +157,7 @@ export function Layout({ children }: LayoutProps) {
               <span>Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
+            <DropdownMenuItem onClick={handleLogout} className="text-gray-800 hover:bg-gray-100">
               <LogOut className="mr-2 h-4 w-4" />
               <span>Logout</span>
             </DropdownMenuItem>
@@ -350,7 +384,7 @@ export function Layout({ children }: LayoutProps) {
                   <DropdownMenuSeparator />
                 </>
               )}
-              <DropdownMenuItem onClick={handleLogout}>
+              <DropdownMenuItem onClick={handleLogout} className="text-gray-800 hover:bg-gray-100">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Logout</span>
               </DropdownMenuItem>

@@ -243,7 +243,7 @@ export default function Dashboard() {
           <h1 className="text-xl font-medium flex-1">Library Management System</h1>
           <Button 
             variant="outline" 
-            className="ml-auto text-primary-foreground border-primary-foreground"
+            className="ml-auto text-gray-800 border-gray-300 hover:bg-gray-100"
             onClick={handleLogout}
           >
             Logout
