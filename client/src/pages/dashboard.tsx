@@ -1,5 +1,4 @@
 import { Layout } from "@/components/ui/layout";
-import { useAuth } from "@/hooks/use-auth";
 import { BorrowedBookCard } from "@/components/ui/borrowed-book-card";
 import { BookCard } from "@/components/ui/book-card";
 import { Button } from "@/components/ui/button";
@@ -9,16 +8,41 @@ import { Book, Borrow } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarClock, Clock, History, Loader2, Search } from "lucide-react";
 import { BookDetailDialog } from "@/components/ui/book-detail-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import { format, formatDistanceToNow } from "date-fns";
 
+// User interface
+interface User {
+  id: number;
+  username: string;
+  fullName: string;
+  isAdmin: boolean;
+}
+
 export default function Dashboard() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+
+  // Fetch user data
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/user', { credentials: 'include' });
+        if (res.ok) {
+          const userData = await res.json();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data:", error);
+      }
+    };
+    
+    fetchUser();
+  }, []);
 
   // Fetch all books
   const { data: books, isLoading: isLoadingBooks } = useQuery<Book[]>({
@@ -156,8 +180,124 @@ export default function Dashboard() {
     .sort((a, b) => b.date.getTime() - a.date.getTime())
     .slice(0, 5);
 
+  // Custom Layout component that doesn't use useAuth
+  const CustomLayout = ({ children }: { children: React.ReactNode }) => {
+    const [location] = useLocation();
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    
+    const handleLogout = async () => {
+      try {
+        await apiRequest("POST", "/api/logout", {});
+        navigate("/auth");
+      } catch (error) {
+        console.error("Logout failed:", error);
+      }
+    };
+    
+    const navItems = [
+      {
+        icon: <Clock className="h-5 w-5 mr-3" />,
+        label: "Dashboard",
+        href: "/",
+        active: location === "/",
+      },
+      {
+        icon: <BookCard className="h-5 w-5 mr-3" />,
+        label: "Browse Books",
+        href: "/browse",
+        active: location === "/browse",
+      },
+      {
+        icon: <CalendarClock className="h-5 w-5 mr-3" />,
+        label: "My Borrowed Books",
+        href: "/borrowed",
+        active: location === "/borrowed",
+      },
+    ];
+    
+    const adminItems = [
+      {
+        icon: <History className="h-5 w-5 mr-3" />,
+        label: "Manage Books",
+        href: "/manage/books",
+        active: location === "/manage/books",
+      },
+      {
+        icon: <Search className="h-5 w-5 mr-3" />,
+        label: "Manage Users",
+        href: "/manage/users",
+        active: location === "/manage/users",
+      },
+    ];
+    
+    return (
+      <div className="min-h-screen flex flex-col">
+        <header className="bg-primary text-primary-foreground shadow-md z-10 flex items-center px-4 h-16">
+          <h1 className="text-xl font-medium flex-1">Library Management System</h1>
+          <Button 
+            variant="outline" 
+            className="ml-auto text-primary-foreground border-primary-foreground"
+            onClick={handleLogout}
+          >
+            Logout
+          </Button>
+        </header>
+        
+        <div className="flex flex-1">
+          <nav className="hidden md:block w-64 bg-white shadow-sm border-r border-gray-100 p-4">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Main</h3>
+                <ul className="mt-3 space-y-2">
+                  {navItems.map(item => (
+                    <li key={item.href}>
+                      <a 
+                        href={item.href}
+                        className={`flex items-center px-3 py-2 text-sm rounded-md ${
+                          item.active ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        {item.icon}
+                        <span>{item.label}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              {user?.isAdmin && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</h3>
+                  <ul className="mt-3 space-y-2">
+                    {adminItems.map(item => (
+                      <li key={item.href}>
+                        <a 
+                          href={item.href}
+                          className={`flex items-center px-3 py-2 text-sm rounded-md ${
+                            item.active ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          {item.icon}
+                          <span>{item.label}</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </nav>
+          
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50">
+            {children}
+          </main>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <Layout>
+    <CustomLayout>
       <div className="max-w-7xl mx-auto">
         {/* Dashboard Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
@@ -358,6 +498,6 @@ export default function Dashboard() {
           isBorrowed={isBookBorrowed(selectedBook.id)}
         />
       )}
-    </Layout>
+    </CustomLayout>
   );
 }
