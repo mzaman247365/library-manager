@@ -4,7 +4,7 @@ import { BookCard } from "@/components/ui/book-card";
 import { Button } from "@/components/ui/button";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Book, Borrow } from "@shared/schema";
+import { Book, Borrow, ActivityItem } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarClock, Clock, History, Loader2, Search } from "lucide-react";
 import { BookDetailDialog } from "@/components/ui/book-detail-dialog";
@@ -160,26 +160,26 @@ export default function Dashboard() {
   }).length || 0;
 
   // Activity items for dashboard
-  const activityItems = activeBorrows?.map(borrow => ({
+  const activityItems: ActivityItem[] = activeBorrows?.map(borrow => ({
     id: borrow.id,
-    type: 'borrow' as const,
-    bookTitle: borrow.book.title,
+    type: 'borrow',
+    bookTitle: borrow.book.title || 'Unknown Book',
     date: new Date(borrow.borrowDate),
-    message: `You borrowed "${borrow.book.title}"`
+    message: `You borrowed "${borrow.book.title || 'Unknown Book'}"`
   })) || [];
   
   // Add overdue reminders to activity
-  const dueReminders = activeBorrows?.filter(borrow => {
+  const dueReminders: ActivityItem[] = activeBorrows?.filter(borrow => {
     const dueDate = new Date(borrow.dueDate);
     const today = new Date();
     const differenceInDays = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return differenceInDays <= 3;
   }).map(borrow => ({
     id: borrow.id + 1000, // Ensure unique ID
-    type: 'reminder' as const,
-    bookTitle: borrow.book.title,
+    type: 'reminder',
+    bookTitle: borrow.book.title || 'Unknown Book',
     date: new Date(), // Today
-    message: `Reminder: "${borrow.book.title}" is due soon`
+    message: `Reminder: "${borrow.book.title || 'Unknown Book'}" is due soon`
   })) || [];
   
   // Combine and sort activities
@@ -468,9 +468,8 @@ export default function Dashboard() {
                           ? 'bg-amber-500/10 text-amber-500'
                           : 'bg-green-500/10 text-green-500'
                     }`}>
-                      {activity.type === 'borrow' && <BookCard className="h-5 w-5" />}
+                      {activity.type === 'borrow' && <History className="h-5 w-5" />}
                       {activity.type === 'reminder' && <Clock className="h-5 w-5" />}
-                      {activity.type === 'return' && <CalendarClock className="h-5 w-5" />}
                     </div>
                     <div className="ml-3">
                       <p className="text-sm">{activity.message}</p>
