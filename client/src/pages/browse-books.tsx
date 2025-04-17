@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export default function BrowseBooks() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
   // Fetch all books
@@ -84,12 +84,18 @@ export default function BrowseBooks() {
   };
 
   // Extract unique categories
-  const categories = books 
-    ? [...new Set(books.filter(book => book.category).map(book => book.category))]
-    : [];
+  const categoriesSet = new Set<string>();
+  if (books) {
+    books.forEach(book => {
+      if (book.category) {
+        categoriesSet.add(book.category);
+      }
+    });
+  }
+  const categories = Array.from(categoriesSet);
 
   // Filter books by category if selected
-  const filteredBooks = selectedCategory
+  const filteredBooks = (selectedCategory && selectedCategory !== "all")
     ? books?.filter(book => book.category === selectedCategory)
     : books;
 
@@ -119,9 +125,9 @@ export default function BrowseBooks() {
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
                 {categories.map((category) => (
-                  <SelectItem key={category} value={category!}>
+                  <SelectItem key={category} value={category}>
                     {category}
                   </SelectItem>
                 ))}
