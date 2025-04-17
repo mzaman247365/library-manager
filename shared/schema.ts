@@ -59,6 +59,10 @@ export const insertBookSchema = createInsertSchema(books).pick({
   totalCopies: true,
   availableCopies: true,
   publicationYear: true,
+  publisher: true,
+  pageCount: true,
+  averageRating: true,
+  language: true,
 });
 
 export type InsertBook = z.infer<typeof insertBookSchema>;
