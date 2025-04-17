@@ -88,6 +88,12 @@ async function insertUsers(pool: Pool) {
     INSERT INTO users (username, password, full_name, is_admin, email)
     VALUES ($1, $2, $3, $4, $5)
   `, ['user', userHash, 'Regular User', false, 'user@library.local']);
+  
+  // Insert reader user
+  await pool.query(`
+    INSERT INTO users (username, password, full_name, is_admin, email)
+    VALUES ($1, $2, $3, $4, $5)
+  `, ['reader', userHash, 'Avid Reader', false, 'reader@library.local']);
 }
 
 // Function to insert sample books
@@ -267,8 +273,12 @@ async function insertBorrows(pool: Pool) {
   // Calculate dates relative to now
   const now = new Date();
   
+  // Past dates
   const sixtyDaysAgo = new Date(now);
   sixtyDaysAgo.setDate(now.getDate() - 60);
+  
+  const fiftyDaysAgo = new Date(now);
+  fiftyDaysAgo.setDate(now.getDate() - 50);
   
   const fortyFiveDaysAgo = new Date(now);
   fortyFiveDaysAgo.setDate(now.getDate() - 45);
@@ -276,18 +286,35 @@ async function insertBorrows(pool: Pool) {
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(now.getDate() - 30);
   
-  const fiftyDaysAgo = new Date(now);
-  fiftyDaysAgo.setDate(now.getDate() - 50);
+  const twentyDaysAgo = new Date(now);
+  twentyDaysAgo.setDate(now.getDate() - 20);
   
-  const thirtySixDaysAgo = new Date(now);
-  thirtySixDaysAgo.setDate(now.getDate() - 36);
+  const fifteenDaysAgo = new Date(now);
+  fifteenDaysAgo.setDate(now.getDate() - 15);
   
   const thirtyTwoDaysAgo = new Date(now);
   thirtyTwoDaysAgo.setDate(now.getDate() - 32);
   
+  const tenDaysAgo = new Date(now);
+  tenDaysAgo.setDate(now.getDate() - 10);
+  
+  const fiveDaysAgo = new Date(now);
+  fiveDaysAgo.setDate(now.getDate() - 5);
+  
   const sixteenDaysAgo = new Date(now);
   sixteenDaysAgo.setDate(now.getDate() - 16);
+  
+  // Future dates
+  const inFiveDays = new Date(now);
+  inFiveDays.setDate(now.getDate() + 5);
+  
+  const inTenDays = new Date(now);
+  inTenDays.setDate(now.getDate() + 10);
+  
+  const inFifteenDays = new Date(now);
+  inFifteenDays.setDate(now.getDate() + 15);
 
+  console.log('Adding historical borrows for "user"...');
   // Insert first borrow (already returned)
   await pool.query(`
     INSERT INTO borrows (user_id, book_id, borrow_date, due_date, return_date, is_returned)
@@ -299,12 +326,89 @@ async function insertBorrows(pool: Pool) {
     INSERT INTO borrows (user_id, book_id, borrow_date, due_date, return_date, is_returned)
     VALUES ($1, $2, $3, $4, $5, $6)
   `, [2, 3, fortyFiveDaysAgo, thirtyDaysAgo, thirtyTwoDaysAgo, true]);
+  
+  // Insert returned borrow for The Lord of the Rings
+  await pool.query(`
+    INSERT INTO borrows (user_id, book_id, borrow_date, due_date, return_date, is_returned)
+    VALUES ($1, $2, $3, $4, $5, $6)
+  `, [2, 9, thirtyDaysAgo, tenDaysAgo, fiveDaysAgo, true]);
 
-  // Insert third borrow (active)
+  console.log('Adding active borrows for "user"...');
+  // Insert active borrow (The Hobbit)
   await pool.query(`
     INSERT INTO borrows (user_id, book_id, borrow_date, due_date, is_returned)
     VALUES ($1, $2, $3, $4, $5)
   `, [2, 5, thirtyDaysAgo, sixteenDaysAgo, false]);
+  
+  // Adjust book availability
+  await pool.query(`
+    UPDATE books SET available_copies = 0 WHERE id = 5
+  `);
+  
+  // Borrow 1 (Pride and Prejudice)
+  await pool.query(`
+    INSERT INTO borrows (user_id, book_id, borrow_date, due_date, is_returned)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (user_id, book_id, borrow_date) DO NOTHING
+  `, [2, 4, fifteenDaysAgo, inFifteenDays, false]);
+  
+  // Update book availability
+  await pool.query(`
+    UPDATE books 
+    SET available_copies = available_copies - 1 
+    WHERE id = 4 AND available_copies > 0
+  `);
+
+  // Borrow 2 (Brave New World)
+  await pool.query(`
+    INSERT INTO borrows (user_id, book_id, borrow_date, due_date, is_returned)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (user_id, book_id, borrow_date) DO NOTHING
+  `, [2, 6, tenDaysAgo, inTenDays, false]);
+  
+  // Update book availability
+  await pool.query(`
+    UPDATE books 
+    SET available_copies = available_copies - 1 
+    WHERE id = 6 AND available_copies > 0
+  `);
+  
+  console.log('Adding borrows for "reader"...');
+  
+  // Returned borrow for 1984
+  await pool.query(`
+    INSERT INTO borrows (user_id, book_id, borrow_date, due_date, return_date, is_returned)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (user_id, book_id, borrow_date) DO NOTHING
+  `, [3, 2, twentyDaysAgo, tenDaysAgo, fiveDaysAgo, true]);
+  
+  // Borrow 1 (The Catcher in the Rye)
+  await pool.query(`
+    INSERT INTO borrows (user_id, book_id, borrow_date, due_date, is_returned)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (user_id, book_id, borrow_date) DO NOTHING
+  `, [3, 7, twentyDaysAgo, inFiveDays, false]);
+  
+  // Update book availability
+  await pool.query(`
+    UPDATE books 
+    SET available_copies = available_copies - 1 
+    WHERE id = 7 AND available_copies > 0
+  `);
+  
+  // Borrow 2 (Moby-Dick)
+  await pool.query(`
+    INSERT INTO borrows (user_id, book_id, borrow_date, due_date, is_returned)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (user_id, book_id, borrow_date) DO NOTHING
+  `, [3, 8, thirtyDaysAgo, fiveDaysAgo, false]);
+  
+  // Update book availability
+  await pool.query(`
+    UPDATE books 
+    SET available_copies = available_copies - 1 
+    WHERE id = 8 AND available_copies > 0
+  `);
 }
 
 async function main() {
@@ -335,9 +439,17 @@ async function main() {
     console.log('Admin user:');
     console.log('  Username: admin');
     console.log('  Password: admin123');
-    console.log('\nRegular user:');
+    console.log('\nRegular users:');
     console.log('  Username: user');
     console.log('  Password: user123');
+    console.log('\n  Username: reader');
+    console.log('  Password: user123');
+    
+    console.log('\nData summary:');
+    console.log('- 3 users (admin, user, reader)');
+    console.log('- 10 books in various categories');
+    console.log('- Multiple borrow records (active and historical)');
+    console.log('- Book availability properly updated to reflect borrows');
   } catch (error) {
     console.error('Error setting up database:', error);
   } finally {
