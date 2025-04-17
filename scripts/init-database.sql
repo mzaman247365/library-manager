@@ -1,7 +1,4 @@
--- Library Management System Database Schema
--- This script creates the database schema and populates it with sample data
-
--- Drop tables if they exist
+-- Drop tables if they exist (in reverse order of dependencies)
 DROP TABLE IF EXISTS borrows;
 DROP TABLE IF EXISTS books;
 DROP TABLE IF EXISTS users;
