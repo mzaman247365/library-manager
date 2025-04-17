@@ -62,12 +62,14 @@ export default function AuthPage() {
     }));
   };
   
+  // Modified login function to handle the redirect issue
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     
     try {
-      const res = await fetch('/api/login', {
+      // Perform login
+      const loginRes = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -76,31 +78,46 @@ export default function AuthPage() {
         credentials: 'include'
       });
       
-      if (!res.ok) {
-        const error = await res.json();
+      if (!loginRes.ok) {
+        const error = await loginRes.json();
         throw new Error(error.error || "Login failed");
       }
       
-      const user = await res.json();
+      const user = await loginRes.json();
       
+      // Verify session is established
+      const checkRes = await fetch('/api/user', { 
+        credentials: 'include',
+        // Add cache-busting to avoid cached responses
+        headers: { 
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        } 
+      });
+      
+      if (!checkRes.ok) {
+        throw new Error("Session could not be verified");
+      }
+      
+      // Show success message
       toast({
         title: "Login successful",
         description: `Welcome back, ${user.fullName || user.username}!`,
       });
       
-      // Redirect to homepage
-      navigate("/");
+      // Force redirect to homepage using window.location
+      window.location.href = "/";
     } catch (error) {
       toast({
         title: "Login failed",
         description: error instanceof Error ? error.message : "Invalid username or password",
         variant: "destructive",
       });
-    } finally {
       setIsLoggingIn(false);
     }
   };
   
+  // Modified register function to handle the redirect issue
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsRegistering(true);
@@ -131,15 +148,14 @@ export default function AuthPage() {
         description: `Welcome, ${user.fullName || user.username}!`,
       });
       
-      // Redirect to homepage
-      navigate("/");
+      // Force redirect to homepage using window.location
+      window.location.href = "/";
     } catch (error) {
       toast({
         title: "Registration failed",
         description: error instanceof Error ? error.message : "An error occurred during registration",
         variant: "destructive",
       });
-    } finally {
       setIsRegistering(false);
     }
   };
