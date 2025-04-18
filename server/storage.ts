@@ -1,10 +1,17 @@
 import { users, type User, type InsertUser, books, type Book, type InsertBook, borrows, type Borrow, type InsertBorrow } from "@shared/schema";
 import session from "express-session";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, and, like, or, desc, sql } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
-import { pool } from "./db";
+import { config } from 'dotenv';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 
+// Load environment variables
+config();
+
+// Configure session store based on the database type
+const dbType = process.env.DB_TYPE || 'neon';
 const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
