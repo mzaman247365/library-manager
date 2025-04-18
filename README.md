@@ -14,7 +14,7 @@ A comprehensive web application for managing book inventory, user registrations,
 
 - **Frontend**: React with TypeScript, Tailwind CSS, shadcn/ui components
 - **Backend**: Node.js with Express
-- **Database**: PostgreSQL with Drizzle ORM
+- **Database**: PostgreSQL with Drizzle ORM (supports both Neon cloud and local PostgreSQL)
 - **Authentication**: Passport.js with local strategy
 
 ## Project Structure
@@ -45,12 +45,19 @@ A comprehensive web application for managing book inventory, user registrations,
 
 1. Clone the repository
 2. Install dependencies: `npm install`
-3. Set up your PostgreSQL database and configure the DATABASE_URL environment variable
+3. Copy `.env.example` to `.env` and configure according to your database setup:
+   - For Neon cloud PostgreSQL: Set `DB_TYPE=neon` and configure `DATABASE_URL`
+   - For local PostgreSQL: Set `DB_TYPE=postgres` and configure the `PG*` variables
 4. Initialize the database with sample data:
    ```bash
    npx tsx scripts/setup-database.ts
    ```
 5. Start the development server: `npm run dev`
+
+### Database Configuration
+
+This application supports both Neon cloud PostgreSQL and standard local PostgreSQL installations.
+See [DATABASE_SETUP.md](DATABASE_SETUP.md) for detailed instructions on configuring and switching between database types.
 
 ### Database Scripts
 
